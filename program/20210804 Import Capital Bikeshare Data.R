@@ -8,7 +8,6 @@ setwd(dir)
 source <- "data/Capital Bikeshare/"
 
 pacman::p_load(data.table, lubridate, ggmap, openxlsx)
-register_google(key = "AIzaSyD4T_MQ9Ck7xutCN0SELCNOB2gOiBDV61w")
 
 #################################################################################
 # IMPORT CAPITAL BIKESHARE TRIP DATA
