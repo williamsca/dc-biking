@@ -1,5 +1,3 @@
-# Import Capital Bikeshare trip data
-
 rm(list = ls())
 
 dir <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
@@ -33,12 +31,12 @@ dt <- readRDS("derived/Capital Bikeshare Trips (2015-2019).Rds")
 dt.flows <- dt[, .(nTrips = .N), .(month, year, `Start station number`, `Start station`, `End station number`, `End station`)]
 setorder(dt.flows, `Start station number`, -nTrips)
 
-# Merge in dock coordinates
 # dt.coordinates <- fread(paste0(source, "20210805 Capital_Bike_Share_Locations.csv"))
 
-# Many station numbers appear with conflicting names. Generally, the names clearly refer to the  same location. However,
+# Merge in dock coordinates
+# Many station numbers appear with conflicting names. Generally, the names clearly refer to the same location. However,
 # some are substantially different. I've therefore defined each station as the combination of the station number and the station name.
-# Each of those tuples maps onto a unique NAME value.
+# Each of those tuples maps m:1 onto one NAME.
 dt.coordinates <- setDT(read.xlsx("derived/LOOKUP Station ~ Coordinates.xlsx"))
 dt.coordinates <- unique(dt.coordinates[, .(`Start.station.number`, `Start.station`, NAME, X, Y)]) 
 
@@ -48,12 +46,28 @@ setnames(dt.flows, c("NAME", "X", "Y"), c("startNAME", "startX", "startY"))
 dt.flows <- merge(dt.flows, dt.coordinates, by.x = c("End station number", "End station"), by.y = c("Start.station.number", "Start.station"), all.x = TRUE)
 setnames(dt.flows, c("NAME", "X", "Y"), c("endNAME", "endX", "endY"))
 
+# Define a station as "active" in a particular month if any trips originate or end there
+dt.starts <- unique(dt.flows[, .(startNAME, month, year)])
+dt.ends <- unique(dt.flows[, .(endNAME, month, year)])
+setnames(dt.ends, c("endNAME"), c("startNAME"))
+dt.active <- funion(dt.starts, dt.ends, all = FALSE)
+# dt.active <- fintersect(dt.starts, dt.ends)
+dt.possible <- dt.active[, CJ(startNAME = startNAME, endNAME = startNAME), .(month, year)]
+
+dt.coordinates_NAME <- unique(dt.coordinates[, .(NAME, X, Y)])
+dt.possible <- merge(dt.possible, dt.coordinates_NAME, by.x = c("startNAME"), by.y = c("NAME"))
+setnames(dt.possible, c("X", "Y"), c("startX", "startY"))
+dt.possible <- merge(dt.possible, dt.coordinates_NAME, by.x = c("endNAME"), by.y = c("NAME"))
+setnames(dt.possible, c("X", "Y"), c("endX", "endY"))
+
 dt.flows <- dt.flows[, .(nTrips = sum(nTrips)), .(month, year, `startNAME`, `endNAME`, `startX`, `startY`, `endX`, `endY`)]
-anyDuplicated(dt.flows, by = c("month", "year", "startNAME", "endNAME")) == 0 # verify that each station has a unique (longitude, latitude) tuple
+dt.flows <- merge(dt.possible, dt.flows, by = c("month", "year", "startNAME", "endNAME", "startX", "startY", "endX", "endY"), all = TRUE)
 
-dt.flows[, distance := distVincentyEllipsoid(cbind(startX, startY), cbind(endX, endY)) / 1609] # distance calculations (in miles)
+anyDuplicated(dt.flows, by = c("month", "year", "startNAME", "endNAME")) == 0 # TRUE -> each station has a unique (longitude, latitude) tuple
 
-nrow(dt.flows[startNAME != endNAME & distance == 0]) == 0 # verify that no two stations have the same location
+dt.flows[, distance := distVincentySphere(cbind(startX, startY), cbind(endX, endY)) / 1609] # distance calculations (in miles)
+
+nrow(dt.flows[startNAME != endNAME & distance <= 1e-2]) == 0 # TRUE -> no two stations are within .01 miles
 
 saveRDS(dt.flows, file = "derived/Capital Bikeshare Flows (2015-2019).Rds")
 
