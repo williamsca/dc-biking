@@ -1,0 +1,23 @@
+* OSRM & Docker (2021.08.29)
+I followed the instructions at this link to set up the docker server: https://github.com/Project-OSRM/osrm-backend
+
+In particular, here are the steps:
+- Install docker
+- Download the DC extract from [[http://download.geofabrik.de/north-america/us-south.html][Geofabrik]]. Having some issues with the [[http://download.geofabrik.de/north-america/us-south.html%5D%5D][US South]] extract, possibly due to inadequate RAM.
+- Pre-process the extract and initialize the server
+
+#+BEGIN_SRC sh
+sudo snap install docker
+wget http://download.geofabrik.de/north-america/us/district-of-columbia-latest.osm.pbf
+sudo docker run -t -v "${PWD}:/data" osrm/osrm-backend osrm-extract -p /opt/car.lua /data/district-of-columbia-latest.osm.pbf
+sudo docker run -t -v "${PWD}:/data" osrm/osrm-backend osrm-partition /data/district-of-columbia-latest.osrm
+sudo docker run -t -v "${PWD}:/data" osrm/osrm-backend osrm-customize /data/district-of-columbia-latest.osrm
+sudo docker run -t -i -p 5000:5000 -v "${PWD}:/data" osrm/osrm-backend osrm-routed --algorithm mld /data/district-of-columbia-latest.osrm
+#+END_SRC
+
+- Finally, point R to to the local server: 
+
+#+BEGIN_SRC R
+pacman::p_load(osrm)
+options(osrm.server = "http://localhost:5000/", osrm.profile = "bike")
+#+END_SRC

@@ -1,0 +1,42 @@
+import requests
+import json
+import csv
+
+def test():
+
+    PROFILE = "bike"
+
+    startX = 13.388860
+    startY = 52.517037
+    endX = 13.397634
+    endY = 52.523219
+
+    coordinates = str(startX) + "," + str(startY)  + ";" + str(endX) + "," + str(endY)
+
+    r = requests.get("http://router.project-osrm.org/route/v1/" + PROFILE +
+                     "/" + coordinates + "?steps=true").json()
+
+    # columns = ["ID", "startX", "startY", "endX", "endY", ...]
+    
+    startX, startY = r["waypoints"][0]["location"]
+    endX, endY = r["waypoints"][1]["location"]
+
+    print(r["routes"][1]
+
+    # with open("20210826 Biking Distance Calculations.csv", "wb+") as f:
+        
+
+    #for wayp in r["waypoints"]:
+    #    print(wayp["location"])
+
+    #for route in r["routes"]:
+    #    print(route)
+    
+    print(r)
+
+###############################################################
+def main():
+    test()
+    
+if __name__ == '__main__':
+    main()

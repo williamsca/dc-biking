@@ -1,0 +1,16 @@
+#+LATEX_CLASS: article
+#+LATEX_CLASS_OPTIONS: [letterpaper]
+#+OPTIONS: toc:nil
+
+#+TITLE: Bikeshares
+#+AUTHOR: Colin Williams
+
+* Introduction
+
+City governments have invested in building out networks of bikeshare stations. These programs are popular, but nevertheless they incur substantial costs.
+
+Prior work has found a positive effect of bikeshare stations on local rents. [TODO]
+
+These papers estimate the effect of connecting a neighborhood to the entire bikeshare network. However, they do not capture a key quantity of interest to the policy maker: the marginal value of an additional station at a particular location. This value consists of both the local effect of connecting the immediate neighborhood to the bikeshare network plus and the global value of a more connections across the city.
+
+

@@ -31,13 +31,11 @@ dt <- readRDS("derived/Capital Bikeshare Trips (2015-2019).Rds")
 dt.flows <- dt[, .(nTrips = .N), .(month, year, `Start station number`, `Start station`, `End station number`, `End station`)]
 setorder(dt.flows, `Start station number`, -nTrips)
 
-# dt.coordinates <- fread(paste0(source, "20210805 Capital_Bike_Share_Locations.csv"))
-
 # Merge in dock coordinates
 # Many station numbers appear with conflicting names. Generally, the names clearly refer to the same location. However,
 # some are substantially different. I've therefore defined each station as the combination of the station number and the station name.
 # Each of those tuples maps m:1 onto one NAME.
-dt.coordinates <- setDT(read.xlsx("derived/LOOKUP Station ~ Coordinates.xlsx"))
+dt.coordinates <- setDT(read.xlsx("lookup/LOOKUP Station ~ Coordinates.xlsx"))
 dt.coordinates <- unique(dt.coordinates[, .(`Start.station.number`, `Start.station`, NAME, X, Y)]) 
 
 dt.flows <- merge(dt.flows, dt.coordinates, by.x = c("Start station number", "Start station"), by.y = c("Start.station.number", "Start.station"), all.x = TRUE)
@@ -66,6 +64,8 @@ dt.flows <- merge(dt.possible, dt.flows, by = c("month", "year", "startNAME", "e
 anyDuplicated(dt.flows, by = c("month", "year", "startNAME", "endNAME")) == 0 # TRUE -> each station has a unique (longitude, latitude) tuple
 
 dt.flows[, distance := distVincentySphere(cbind(startX, startY), cbind(endX, endY)) / 1609] # distance calculations (in miles)
+# dt.distances <- setDT(read.xlsx("lookup/LOOKUP startNAME + endNAME ~ distance.xlsx")) # TODO
+# dt.flows <- merge(dt.flows, dt.distances, by = c("startNAME", "endNAME"))
 
 nrow(dt.flows[startNAME != endNAME & distance <= 1e-2]) == 0 # TRUE -> no two stations are within .01 miles
 

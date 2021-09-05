@@ -1,0 +1,40 @@
+* Outliner
+
+Text text text!
+*bold* /italic/ =verbatim= +strikethrough+
+
+- bulleted
+- items
+
+[[https://www.youtube.com/watch?v=SzA2YODtgK4][tutorial]]
+
+| Some | Data           |
+|------+----------------|
+|   12 | buckle my shoe |
+|   34 | shut the door  |
+
+* export to other formats
+
+
+#+TITLE: A Gentle Introduction to Org-Mode
+#+OPTIONS: toc:nil
+
+* Source code
+
+* LaTeX integration
+HEYO SHOW UP
+- Characters: \alpha, \rightarrow
+- $O(n \log n)$
+
+#+BEGIN_SRC python
+  print("HEYO")
+
+  def build(a):
+      if a < 0:
+	  return a*a
+      else:
+	  return a
+
+#+END_SRC
+
+
