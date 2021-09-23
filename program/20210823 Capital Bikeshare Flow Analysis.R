@@ -12,9 +12,6 @@ dt <- readRDS("derived/Capital Bikeshare Flows (2015-2019).Rds")
 #################################################################################
 # DATA EXPLORATION
 #################################################################################
-# Note that our data include only station pairs with >0 trips. It may be necessary to
-# impute 0s for those station pairs which are both operating in a given month but do not
-# see any pairwise traffic.
 dt.stations <- unique(dt[, .(startNAME, endNAME, distance)])
 summary(dt.stations[, distance])
 hist(dt.stations[, distance])

@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2021-08-29 Sun 13:21 -->
+<!-- 2021-08-29 Sun 13:22 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>&lrm;</title>
@@ -233,12 +233,12 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org9c7ce48">1. OSRM &amp; Docker (2021.08.29)</a></li>
+<li><a href="#orgda48a99">1. OSRM &amp; Docker (2021.08.29)</a></li>
 </ul>
 </div>
 </div>
-<div id="outline-container-org9c7ce48" class="outline-2">
-<h2 id="org9c7ce48"><span class="section-number-2">1</span> OSRM &amp; Docker (2021.08.29)</h2>
+<div id="outline-container-orgda48a99" class="outline-2">
+<h2 id="orgda48a99"><span class="section-number-2">1</span> OSRM &amp; Docker (2021.08.29)</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 I followed the instructions at this link to set up the docker server: <a href="https://github.com/Project-OSRM/osrm-backend">https://github.com/Project-OSRM/osrm-backend</a>
@@ -249,12 +249,7 @@ In particular, here are the steps:
 </p>
 <ul class="org-ul">
 <li>Install docker</li>
-<li>Download the DC extract from <a href="http://download.geofabrik.de/north-america/us-south.html">Geofabrik</a></li>
-</ul>
-<p>
-&#x2013; TODO Determine why US South extract fails to process (<a href="http://download.geofabrik.de/north-america/us-south.html">http://download.geofabrik.de/north-america/us-south.html</a>)
-</p>
-<ul class="org-ul">
+<li>Download the DC extract from <a href="http://download.geofabrik.de/north-america/us-south.html">Geofabrik</a>. Having some issues with the <a href="http://download.geofabrik.de/north-america/us-south.html%5D%5D">US South</a> extract.</li>
 <li>Pre-process the extract and initialize the server</li>
 </ul>
 
@@ -281,7 +276,7 @@ options(osrm.server = "http://localhost:5000/", osrm.profile = "bike")
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: colin</p>
-<p class="date">Created: 2021-08-29 Sun 13:21</p>
+<p class="date">Created: 2021-08-29 Sun 13:22</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

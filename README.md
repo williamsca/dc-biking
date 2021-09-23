@@ -2,6 +2,7 @@
 Analysis of DOT modifications to traffic and parking requirements.
 
 # TODO
+- Calculate driving distances for entire DMV area
 - Calculate driving distances between docking stations
 - Estimate transportation cost between stations as a function of elevation change
 -- https://cran.r-project.org/web/packages/elevatr/vignettes/introduction_to_elevatr.html

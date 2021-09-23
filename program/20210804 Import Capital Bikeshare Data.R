@@ -3,7 +3,7 @@ rm(list = ls())
 dir <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
 setwd(dir)
 
-source <- "data/Capital Bikeshare/"
+source <- "source/Capital Bikeshare/"
 
 pacman::p_load(data.table, lubridate, ggmap, openxlsx, geosphere)
 

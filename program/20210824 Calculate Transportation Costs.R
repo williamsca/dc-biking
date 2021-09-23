@@ -14,7 +14,7 @@ dt <- readRDS("derived/Capital Bikeshare Trips (2015-2019).Rds")
 
 dt.flows <- unique(dt[, .(`Start station number`, `Start station`, `End station number`, `End station`, month, year)])
 
-# dt.coordinates <- fread(paste0(source, "20210805 Capital_Bike_Share_Locations.csv"))
+# dt.coordinates <- fread(paste0("source/20210805 Capital_Bike_Share_Locations.csv"))
 
 # Merge in dock coordinates
 # Many station numbers appear with conflicting names. Generally, the names clearly refer to the same location. However,
@@ -23,6 +23,7 @@ dt.flows <- unique(dt[, .(`Start station number`, `Start station`, `End station 
 dt.coordinates <- setDT(read.xlsx("lookup/LOOKUP Station ~ Coordinates.xlsx"))
 dt.NAME <- unique(dt.coordinates[, .(NAME, X, Y)])
 
+# Take the cartesian product of stations
 dt.possible <- expand.grid(dt.NAME$NAME, dt.NAME$NAME)
 dt.possible <- merge(dt.NAME, dt.possible, by.x = "NAME", by.y = "Var1")
 dt.possible <- merge(dt.possible, dt.NAME, by.x = "Var2", by.y = "NAME")
@@ -37,9 +38,12 @@ dt.possible[, dist_geo := distVincentySphere(cbind(startX, startY), cbind(endX, 
 # dst_i <- st_as_sf(dt.possible[1, .(endY, endX)], coords = c("endX", "endY"), crs = 4326)
 # sf.routes <- osrmRoute(src = src_i, dst = dst_i, returnclass = "sf", osrm.profile = "bike")
 # sf.routes$ID <- 1
-sf.routes <- readRDS("int/20210830 Temp Route Calculations (1-25000).Rds")
+sf.routes <- readRDS("int/20210830 Temp Route Calculations (1-100000).Rds")
 
-for (i in 75001:100000) { 
+dt.possible[, ID := .I]
+
+
+for (i in 100001:150000) { 
   src_i <- st_as_sf(dt.possible[i,  .(startY, startX)], coords = c("startX", "startY"), crs = 4326)
   dst_i <- st_as_sf(dt.possible[i, .(endY, endX)], coords = c("endX", "endY"), crs = 4326)
 
@@ -55,12 +59,12 @@ for (i in 75001:100000) {
   #Sys.sleep(2)
 }
 
-saveRDS(sf.routes, "int/20210830 Temp Route Calculations (1-100000).Rds")
+saveRDS(sf.routes, "int/20210830 Temp Route Calculations (1-150000).Rds")
 
 
+# sf.routes$ID <- seq.int(nrow(sf.routes))
 
-dt.possible[, ID := .I]
-sf.routes$ID <- seq.int(nrow(sf.routes))
+sf.biking <- st_as_sf(merge(dt.possible, sf.routes, by = c("ID"), all.x = TRUE), crs = 4326)
 
-sf.biking <- st_as_sf(merge(dt.test, sf.routes, by = c("ID")), crs = 4326)
+saveRDS(sf.biking, "derived/20210911 Route Calculations.Rds")
 
