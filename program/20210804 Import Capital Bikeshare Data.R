@@ -35,7 +35,8 @@ setorder(dt.flows, `Start station number`, -nTrips)
 # Many station numbers appear with conflicting names. Generally, the names clearly refer to the same location. However,
 # some are substantially different. I've therefore defined each station as the combination of the station number and the station name.
 # Each of those tuples maps m:1 onto one NAME.
-dt.coordinates <- setDT(read.xlsx("lookup/LOOKUP Station ~ Coordinates.xlsx"))
+# dt.coordinates <- setDT(read.xlsx("lookup/LOOKUP Station ~ Coordinates.xlsx"))
+dt.coordinates <- readRDS("lookup/LOOKUP Station ~ Coordinates (2021.10.03).Rds")
 dt.coordinates <- unique(dt.coordinates[, .(`Start.station.number`, `Start.station`, NAME, X, Y)]) 
 
 dt.flows <- merge(dt.flows, dt.coordinates, by.x = c("Start station number", "Start station"), by.y = c("Start.station.number", "Start.station"), all.x = TRUE)

@@ -3,7 +3,7 @@ rm(list = ls())
 dir <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
 setwd(dir)
 
-pacman::p_load(data.table, sf, elevatr, rgdal) # broom, ggmap
+pacman::p_load(data.table, sf, elevatr, rgdal, ggmap) # broom, ggmap
 
 #################################################################################
 # MAPS
@@ -17,11 +17,11 @@ shp.roads <- readOGR(dsn = "derived/Mapping/district-of-columbia-latest-free.shp
 df.water <- fortify(shp.water)
 df.roads <- fortify(shp.roads)
 
-sf.routes <- readRDS("derived/20210911 Route Calculations.Rds")
-ggplot(data = sf.routes) +
-  geom_point(aes(x = dist_geo, y = distance)) 
-# NOTE: some distances are erroneous because the calculations are made only on the DC road network
-#       and do not include MD or VA.
+sf.routes <- readRDS("derived/20211018 Route Calculations.Rds")
+
+# verify that biking distance is weakly greater than geographic distance
+# ggplot(data = sf.routes) + geom_point(aes(x = dist_geo, y = distance)) 
+
 
 df.stations <- unique(sf.routes[, c("startNAME", "startX", "startY"), drop = TRUE])
 

@@ -1,4 +1,13 @@
-* OSRM & Docker (2021.08.29)
+* Bike Docks (2021.10.03)
+I begin by identifying all unique start station or end station values in the trips dataset ([[https://www.capitalbikeshare.com/system-data][Capital Bikeshare System Data]). In a few cases, the same station ID appears with conflicting names. These are generally innocuous differences (e.g., "Street" vs. "St"), but several are true conflicts, so my final crosswalk is a m:1 mapping from the (name, ID) tuple in the System Data to an "official" name and ID. 
+
+I obtain the station coordinates in two stages:
+- I merge in the [[https://opendata.dc.gov/datasets/DCGIS::capital-bike-share-locations/about][DC GIS Location Data]] on a (cleaned) station name. The GIS location data includes the capacity of the station as well as a region variable.
+- Some station names cannot be mapped to the GIS location data. I believe this is because the stations were moved or closed since 2015. For these stations, I run the OSM geocoder on the station name and manually verify the results. 
+
+
+* Distance Calculations with OSRM & Docker (2021.08.29)
+
 I followed the instructions at this link to set up the docker server: https://github.com/Project-OSRM/osrm-backend
 
 In particular, here are the steps:
