@@ -5,12 +5,13 @@ setwd(dir)
 
 source <- "source/Capital Bikeshare/"
 
-pacman::p_load(data.table, lubridate, ggmap, openxlsx, geosphere)
+pacman::p_load(data.table, lubridate, openxlsx, sf) #geosphere ggmap
 
 #################################################################################
 # IMPORT CAPITAL BIKESHARE TRIP DATA
 # https://www.capitalbikeshare.com/system-data
-# To save space, the raw and derived data are not tracked by git.
+# To save space, the raw and derived data are not tracked by git. I've saved a
+# backup on an external hard drive.
 #################################################################################
 # files <- list.files(paste0(source, "Trips/"))
 # files <- paste0(source, "Trips/", files)
@@ -37,13 +38,13 @@ setorder(dt.flows, `Start station number`, -nTrips)
 # Each of those tuples maps m:1 onto one NAME.
 # dt.coordinates <- setDT(read.xlsx("lookup/LOOKUP Station ~ Coordinates.xlsx"))
 dt.coordinates <- readRDS("lookup/LOOKUP Station ~ Coordinates (2021.10.03).Rds")
-dt.coordinates <- unique(dt.coordinates[, .(`Start.station.number`, `Start.station`, NAME, X, Y)]) 
+dt.coordinates <- unique(dt.coordinates[, .(`Start.station.number`, `Start.station`, NAME, X, Y, county)]) 
 
 dt.flows <- merge(dt.flows, dt.coordinates, by.x = c("Start station number", "Start station"), by.y = c("Start.station.number", "Start.station"), all.x = TRUE)
-setnames(dt.flows, c("NAME", "X", "Y"), c("startNAME", "startX", "startY"))
+setnames(dt.flows, c("NAME", "X", "Y", "county"), c("startNAME", "startX", "startY", "startCounty"))
 
 dt.flows <- merge(dt.flows, dt.coordinates, by.x = c("End station number", "End station"), by.y = c("Start.station.number", "Start.station"), all.x = TRUE)
-setnames(dt.flows, c("NAME", "X", "Y"), c("endNAME", "endX", "endY"))
+setnames(dt.flows, c("NAME", "X", "Y", "county"), c("endNAME", "endX", "endY", "endCounty"))
 
 # Define a station as "active" in a particular month if any trips originate or end there
 dt.starts <- unique(dt.flows[, .(startNAME, month, year)])
@@ -53,22 +54,36 @@ dt.active <- funion(dt.starts, dt.ends, all = FALSE)
 # dt.active <- fintersect(dt.starts, dt.ends)
 dt.possible <- dt.active[, CJ(startNAME = startNAME, endNAME = startNAME), .(month, year)]
 
-dt.coordinates_NAME <- unique(dt.coordinates[, .(NAME, X, Y)])
+dt.coordinates_NAME <- unique(dt.coordinates[, .(NAME, X, Y, county)]) # CAPACITY, STATION_ID_CW
 dt.possible <- merge(dt.possible, dt.coordinates_NAME, by.x = c("startNAME"), by.y = c("NAME"))
-setnames(dt.possible, c("X", "Y"), c("startX", "startY"))
+setnames(dt.possible, c("X", "Y", "county"), c("startX", "startY", "startCounty"))
 dt.possible <- merge(dt.possible, dt.coordinates_NAME, by.x = c("endNAME"), by.y = c("NAME"))
-setnames(dt.possible, c("X", "Y"), c("endX", "endY"))
+setnames(dt.possible, c("X", "Y", "county"), c("endX", "endY", "endCounty"))
 
-dt.flows <- dt.flows[, .(nTrips = sum(nTrips)), .(month, year, `startNAME`, `endNAME`, `startX`, `startY`, `endX`, `endY`)]
-dt.flows <- merge(dt.possible, dt.flows, by = c("month", "year", "startNAME", "endNAME", "startX", "startY", "endX", "endY"), all = TRUE)
+# Roll up over cases where the same station appears with conflicting names/IDs
+dt.flows <- dt.flows[, .(nTrips = sum(nTrips)), .(month, year, `startNAME`, `endNAME`, `startX`, `startY`, `endX`, `endY`, startCounty, endCounty)]
+
+# This line imputes '0's for all station pairs which are both active in a given month but which don't see any trips.
+dt.flows <- merge(dt.possible, dt.flows, by = c("month", "year", "startNAME", "endNAME", "startX", "startY", "endX", "endY", "startCounty", "endCounty"), all = TRUE)
+dt.flows[is.na(nTrips), nTrips := 0]
 
 anyDuplicated(dt.flows, by = c("month", "year", "startNAME", "endNAME")) == 0 # TRUE -> each station has a unique (longitude, latitude) tuple
 
-dt.flows[, distance := distVincentySphere(cbind(startX, startY), cbind(endX, endY)) / 1609] # distance calculations (in miles)
-# dt.distances <- setDT(read.xlsx("lookup/LOOKUP startNAME + endNAME ~ distance.xlsx")) # TODO
-# dt.flows <- merge(dt.flows, dt.distances, by = c("startNAME", "endNAME"))
+dt.routes <- readRDS("derived/20211120 Route and Elevation Calculations.Rds")
+dt.routes <- dt.routes[, c('startNAME', 'endNAME', 'dist_geo', 'duration', 'distance', 'dist_joules')]
+
+dt.flows <- merge(dt.flows, dt.routes, by = c("startNAME", "endNAME"), all.x = TRUE)
 
 nrow(dt.flows[startNAME != endNAME & distance <= 1e-2]) == 0 # TRUE -> no two stations are within .01 miles
+
+# Filter to stations located inside DC
+dt.flows <- dt.flows[startCounty == "Washington, DC" & endCounty == "Washington, DC"] 
+
+# Compute total trips by startNAME and endNAME and month
+dt.flows[, startNTrips := sum(nTrips), .(startNAME, month, year)]
+dt.flows[, endNTrips := sum(nTrips), .(endNAME, month, year)]
+
+dt.flows <- dt.flows[, c("startCounty", "endCounty", "startX", "startY", "endX", "endY") := NULL]
 
 saveRDS(dt.flows, file = "derived/Capital Bikeshare Flows (2015-2019).Rds")
 
