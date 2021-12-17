@@ -5,7 +5,7 @@ setwd(dir)
 
 source <- "source/Capital Bikeshare/"
 
-pacman::p_load(data.table, lubridate, openxlsx, sf) #geosphere ggmap
+pacman::p_load(data.table, lubridate, openxlsx, sf)
 
 #################################################################################
 # IMPORT CAPITAL BIKESHARE TRIP DATA
@@ -69,10 +69,10 @@ dt.flows[is.na(nTrips), nTrips := 0]
 
 anyDuplicated(dt.flows, by = c("month", "year", "startNAME", "endNAME")) == 0 # TRUE -> each station has a unique (longitude, latitude) tuple
 
-dt.routes <- readRDS("derived/20211120 Route and Elevation Calculations.Rds")
-dt.routes <- dt.routes[, c('startNAME', 'endNAME', 'dist_geo', 'duration', 'distance', 'dist_joules')]
+sf.routes <- readRDS("derived/20211216 Route and Elevation Calculations.Rds")
+st_geometry(sf.routes) <- NULL
 
-dt.flows <- merge(dt.flows, dt.routes, by = c("startNAME", "endNAME"), all.x = TRUE)
+dt.flows <- merge(sf.routes, dt.flows, by = c("startNAME", "endNAME"), all.y = TRUE)
 
 nrow(dt.flows[startNAME != endNAME & distance <= 1e-2]) == 0 # TRUE -> no two stations are within .01 miles
 

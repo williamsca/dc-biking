@@ -109,7 +109,8 @@ mean(dt.elevations$dist_segment, na.rm = TRUE) # the average segment is roughly 
 # dt.test[, diff := V1 - distance]
 #  summary(dt.test$diff) # NB: On average, the "distance" field returned by the OSRM Route API is about 30m *longer* than the sum of the component segments as computed by the Vincenty sphere method.
 
-dt.elevations[, slope := (elevation - L_elevation)/dist_segment * 100]
+dt.elevations[, dElevation := elevation - L_elevation] 
+dt.elevations[, slope := dElevation/dist_segment * 100]
 
 # Calculate rider energy consumption
 K_A = 0.245 # drag factor
@@ -123,6 +124,13 @@ dt.elevations[W_rider < 0, W_rider := 0]
 dt.elevations[, J_segment := W_rider * (dist_segment / V)] # total joules necessary to bike across segment
 dt.elevations[is.na(J_segment) | is.nan(J_segment), J_segment := 0]
 
-dt.final_distances <- dt.elevations[, .(dist_joules = sum(J_segment, na.rm = TRUE)), 
+dt.final_distances <- dt.elevations[, .(dist_joules = sum(J_segment, na.rm = TRUE), dElevation = sum(dElevation, na.rm = TRUE)), 
                                         by = .(endNAME, startNAME, ID.x, dist_geo, duration, distance)]
-saveRDS(dt.final_distances, "derived/20211120 Route and Elevation Calculations.Rds")
+
+# merge back in geometry for mapping
+sf <- readRDS("derived/20211018 Route Calculations.Rds")
+sf <- subset(sf, select = c(ID, startNAME, endNAME, geometry))
+
+sf.final_distances <- merge(sf, dt.final_distances, by.y = c("ID.x", "startNAME", "endNAME"), by.x = c("ID", "startNAME", "endNAME"))
+
+saveRDS(sf.final_distances, "derived/20211216 Route and Elevation Calculations.Rds")
