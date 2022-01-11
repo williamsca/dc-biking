@@ -71,6 +71,8 @@ anyDuplicated(dt.flows, by = c("month", "year", "startNAME", "endNAME")) == 0 # 
 
 sf.routes <- readRDS("derived/20211216 Route and Elevation Calculations.Rds")
 st_geometry(sf.routes) <- NULL
+sf.routes$startX <- NULL
+sf.routes$startY <- NULL
 
 dt.flows <- merge(sf.routes, dt.flows, by = c("startNAME", "endNAME"), all.y = TRUE)
 

@@ -5,21 +5,66 @@ rm(list = ls())
 dir <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
 setwd(dir)
 
-pacman::p_load(data.table, stargazer, estimatr, lmtest)
+pacman::p_load(data.table, stargazer, estimatr, lmtest, Hmisc, weights, openxlsx)
+# Hmisc: calculate weighted standard deviations
+# weights: produce weighted histograms
 
 dt <- readRDS("derived/Capital Bikeshare Flows (2015-2019).Rds")
 
 #################################################################################
 # DATA EXPLORATION
 #################################################################################
-dt.stations <- unique(dt[, .(startNAME, endNAME, dist_geo, duration, distance)])
-summary(dt.stations[, distance])
-hist(dt.stations[, distance]) # biking distance
+nrow(dt[nTrips == 0]) / nrow(dt) # share of origin-destination-month-year tuples with zero trips
 
-nrow(dt.trips[nTrips == 0]) / nrow(dt.trips) # share of origin-destination-month-year tuples with zero trips
+# station-pair level statistics and distributions
+# (includes all station pairs which are ever both active in the same month of 2019)
+dt.pairs <- dt[year == 2019, .(nTrips19 = sum(nTrips)), 
+                  by = .(startNAME, endNAME, dist_geo, duration, distance, dist_joules, dElevation)]
+
+dt.pairs <- dt.pairs[startNAME != endNAME]
+
+summary(dt.pairs[, distance])
+summary(dt.pairs[, dist_joules])
+hist(dt.pairs[, dist_joules], breaks = 260, xlim = c(0, 4000000)) # biking distance
+
+# trip-level statistics and distributions (2019)
+dt.summary <- dt.pairs[, .(avgDElev = weighted.mean(dElevation, nTrips19), 
+                           stdDElev = sqrt(wtd.var(dElevation, nTrips19)),
+                           avgDist = weighted.mean(distance, nTrips19),
+                           stdDist = sqrt(wtd.var(distance, nTrips19)),
+                           avgJoules = weighted.mean(dist_joules, nTrips19),
+                           stdJoules = sqrt(wtd.var(dist_joules, nTrips19)))] 
+
+wtd.hist(dt.pairs[, dElevation], weight = dt.pairs[, nTrips19])
+wtd.hist(dt.pairs[, distance], weight = dt.pairs[, nTrips19])
+wtd.hist(dt.pairs[, dist_joules], weight = dt.pairs[, nTrips19])
+
+# net trip counts by station-month
+dt.stations <- dt[startNAME == endNAME]
+dt.stations <- dt.stations[, .(startNAME, endNAME, ID, month, year, startNTrips, endNTrips)]
+dt.stations[, netTrips := endNTrips - startNTrips]
+dt.stations[, grossTrips := endNTrips + startNTrips]
+setorder(dt.stations, year, month, netTrips) # 
+
+dt.stations19 <- dt.stations[year == 2019]
+dt.stations19 <- dt.stations19[, .(netTrips = sum(netTrips), grossTrips = sum(grossTrips)),
+                               .(startNAME, endNAME, ID, year)]
+dt.stations19[, rankGross := frank(-grossTrips, ties.method = "max"), .(year)]
+dt.stations19[, rankNet := frank(-netTrips, ties.method = "max"), .(year)]
+
+setorder(dt.stations19, rankGross)
+# write.xlsx(dt.stations19[, .(startNAME, rankGross, grossTrips, netTrips)], 
+#            "output/20220105 Busiest Stations (2019).xlsx",
+#            overwrite = TRUE) # don't write over this file; it contains the formatted table
+
+# Capital BikeShare is evidently moving between 10,000 and 20,000 bikes per month
+dt.moved <- dt.stations[, .(nMoved = sum(abs(netTrips))/2), by = .(month, year)]
+
 
 dt.trips <- dt[startNAME != endNAME] # It is not obvious to me how to think about trips which originate and end at the same station.
 dt.trips[, start := as.factor(startNAME)][, end := as.factor(endNAME)][, monthI := as.factor(month)][, yearI := as.factor(year)]
+
+hist(dt.trips)
 
 # Trial run of a gravity model. 
 # Naive log-log form; exclude observations with zero trips.
@@ -30,14 +75,22 @@ lm_geo <- lm(log(nTrips) ~ log(dist_geo) + log(startNTrips) + log(endNTrips) + a
 lm_real <- lm(log(nTrips) ~ log(distance) + log(startNTrips) + log(endNTrips) + as.factor(month):as.factor(year), 
          dt.trips[nTrips > 0 & startNTrips > 0 & endNTrips > 0])
 
-lm_time <- lm(log(nTrips) ~ log(duration) + log(startNTrips) + log(endNTrips) + as.factor(month):as.factor(year), 
+lm_joule <- lm(log(nTrips) ~ log(dist_joules + 1) + log(startNTrips) + log(endNTrips) + as.factor(month):as.factor(year), 
          dt.trips[nTrips > 0 & startNTrips > 0 & endNTrips > 0])
 
 stargazer(lm_geo, lm_real, lm_time, type = "text", covariate.labels = c("Euclidian Distance", "Taxicab Distance", "Duration"), 
           omit = c("month", "year"), se = starprep(lm_geo, lm_real, lm_time))
 
-ppml <- glm(nTrips ~ log(distance) + yearI*monthI + startNTrips + endNTrips, family = "quasipoisson", data = dt.trips)
-summary(ppml)
+ppml_geo <- glm(nTrips ~ log(dist_geo) + startNTrips + endNTrips + monthI:yearI, family = "quasipoisson", data = dt.trips)
+ppml_manhattan <- glm(nTrips ~ log(distance) + startNTrips + endNTrips + monthI:yearI, family = "quasipoisson", data = dt.trips)
+ppml_joules <- glm(nTrips ~ log(dist_joules + 1) + startNTrips + endNTrips + monthI:yearI, family = "quasipoisson", data = dt.trips)
+
+summary(ppml_geo)
+summary(ppml_manhattan)
+summary(ppml_joules)
+
+
+
 
 # Consider the station at 22nd and P St NW. How far do bikers travel from here?
 dt.ex <- dt[startNAME == "22nd & P ST NW" & year == 2019 & month == 8]

@@ -129,7 +129,7 @@ dt.final_distances <- dt.elevations[, .(dist_joules = sum(J_segment, na.rm = TRU
 
 # merge back in geometry for mapping
 sf <- readRDS("derived/20211018 Route Calculations.Rds")
-sf <- subset(sf, select = c(ID, startNAME, endNAME, geometry))
+sf <- subset(sf, select = c(ID, startNAME, endNAME, startX, startY, endX, endY, geometry))
 
 sf.final_distances <- merge(sf, dt.final_distances, by.y = c("ID.x", "startNAME", "endNAME"), by.x = c("ID", "startNAME", "endNAME"))
 

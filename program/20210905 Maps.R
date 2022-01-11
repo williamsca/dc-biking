@@ -3,9 +3,7 @@ rm(list = ls())
 dir <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
 setwd(dir)
 
-library(data.table, rgdal, sf, ggplot2)
-
-# pacman::p_load(data.table, sf, rgdal, ggplot2, broom) # broom, ggmap, elevatr
+pacman::p_load(data.table, sf, rgdal, ggplot2) # broom, ggmap, elevatr
 
 #################################################################################
 # MAPS
@@ -23,47 +21,81 @@ df.roads <- ggplot2::fortify(shp.roads)
 # df.water2 <- broom::tidy(shp.water)
 # df.roads2 <- broom::tidy(shp.roads)
 
-sf.routes <- readRDS("derived/20211018 Route Calculations.Rds")
+sf.routes <- readRDS("derived/20211216 Route and Elevation Calculations.Rds")
 
-# verify that biking distance is weakly greater than geographic distance
+# check that biking distance is weakly greater than geographic distance
 # ggplot(data = sf.routes) + geom_point(aes(x = dist_geo, y = distance)) 
 
-
 df.stations <- unique(sf.routes[, c("startNAME", "startX", "startY"), drop = TRUE])
-df.stations[,is22P := startNAME == "22nd & P ST NW"]
+df.stations[,is14I := startNAME == "14th & Irving St NW"]
 
-sf.22ndP <- subset(sf.routes, startNAME == "22nd & P ST NW")
-df.22ndP <- as.data.frame(st_coordinates(sf.22ndP))
+df.14IFrom <- unique(sf.routes[, c("startNAME", "startX", "startY")])
 
+minJoules <- 80000
+sf.14IFrom <- subset(sf.routes, startNAME == "14th & Irving St NW" & dist_joules <= minJoules
+                     & endNAME != "14th & Irving St NW")
+sf.14ITo <- subset(sf.routes, endNAME == "14th & Irving St NW" & dist_joules <= minJoules
+                     & startNAME != "14th & Irving St NW")
+# df.14ITo <- as.data.frame(st_coordinates(sf.14ITo))
+# df.14IFrom <- as.data.frame(st_coordinates(sf.14IFrom))
 
 ggplot() + 
   
-  # road network
+  # # road network
   geom_path(data = df.roads,
                aes(group = group, x = long, y = lat),
                colour = "gray", alpha = .8) +
   
   # water
-  geom_polygon(data = df.water2,
+  geom_polygon(data = df.water,
                aes(group = group, x = long, y = lat),
                fill  = "lightblue") + 
   
-  # shortest paths from 22nd and P station
-  geom_path(data = df.22ndP,
-            aes(group = L1, x = X, y = Y),
-            colour = "black") +
-  
   # bikeshare stations
-  geom_point(data = df.stations[is22P == FALSE],
-             aes(x = startX, y = startY)) +
+  # geom_point(data = df.stations[is14I == FALSE],
+  #            aes(x = startX, y = startY)) +
   
-  geom_point(data = df.stations[is22P == TRUE],
+  geom_point(data = df.stations[is14I == TRUE],
              aes(x = startX, y = startY), color = "red", size = 3) + 
+  geom_point(data = sf.14IFrom, aes(x = endX, y = endY), color = "black") +
   
   # cleaning up
-  coord_cartesian(xlim = c(-77.1, -77.0), ylim = c(38.85, 38.95)) +
-  theme_minimal()
+  labs(title = "Leaving 14th and Irving St NW is Easy",
+       x = "", y = "") + 
+  coord_cartesian(xlim = c(-77.075, -77.0), ylim = c(38.85, 38.95)) +
+  theme(axis.text.x = element_blank(), axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(), axis.ticks.y = element_blank(),
+        plot.title = element_text(size = 12),
+        panel.background = element_blank())
 
+ggplot() + 
+  
+  # # road network
+  # geom_path(data = df.roads,
+  #              aes(group = group, x = long, y = lat),
+  #              colour = "gray", alpha = .8) +
+  
+  # water
+  geom_polygon(data = df.water,
+               aes(group = group, x = long, y = lat),
+               fill  = "blue") + 
+  
+  # bikeshare stations
+  # geom_point(data = df.stations[is14I == FALSE],
+  #            aes(x = startX, y = startY)) +
+  
+  geom_point(data = df.stations[is14I == TRUE],
+             aes(x = startX, y = startY), color = "red", size = 3) + 
+  geom_point(data = sf.14ITo, aes(x = startX, y = startY), color = "black") +
+  
+  # cleaning up
+  labs(title = "Getting to 14th and Irving St NW is Hard",
+       x = "", y = "") + 
+  coord_cartesian(xlim = c(-77.075, -77.0), ylim = c(38.85, 38.95)) +
+  theme(axis.text.x = element_blank(), axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(), axis.ticks.y = element_blank(),
+        plot.title = element_text(size = 12),
+        panel.background = element_blank())
 
 
 
