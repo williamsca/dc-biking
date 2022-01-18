@@ -46,7 +46,7 @@ setnames(dt.flows, c("NAME", "X", "Y", "county"), c("startNAME", "startX", "star
 dt.flows <- merge(dt.flows, dt.coordinates, by.x = c("End station number", "End station"), by.y = c("Start.station.number", "Start.station"), all.x = TRUE)
 setnames(dt.flows, c("NAME", "X", "Y", "county"), c("endNAME", "endX", "endY", "endCounty"))
 
-# Define a station as "active" in a particular month if any trips originate or end there
+# Define a station as "active" in a particular month if any trips originate OR end there
 dt.starts <- unique(dt.flows[, .(startNAME, month, year)])
 dt.ends <- unique(dt.flows[, .(endNAME, month, year)])
 setnames(dt.ends, c("endNAME"), c("startNAME"))
@@ -71,8 +71,7 @@ anyDuplicated(dt.flows, by = c("month", "year", "startNAME", "endNAME")) == 0 # 
 
 sf.routes <- readRDS("derived/20211216 Route and Elevation Calculations.Rds")
 st_geometry(sf.routes) <- NULL
-sf.routes$startX <- NULL
-sf.routes$startY <- NULL
+sf.routes[, c("startX", "startY", "endX", "endY") := NULL]
 
 dt.flows <- merge(sf.routes, dt.flows, by = c("startNAME", "endNAME"), all.y = TRUE)
 
