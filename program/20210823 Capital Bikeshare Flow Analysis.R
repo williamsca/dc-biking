@@ -83,16 +83,22 @@ wtd.hist(dt.pairs[, dElevation], weight = dt.pairs[, nTrips19])
 wtd.hist(dt.pairs[, distance], weight = dt.pairs[, nTrips19])
 wtd.hist(dt.pairs[, dist_joules], weight = dt.pairs[, nTrips19])
 
-
-
-
+# net trip counts by station-month
+dt.stations <- dt[startNAME == endNAME]
+dt.stations <- dt.stations[, .(startNAME, ID, month, year, startNTrips, endNTrips)]
+dt.stations[, netTrips := endNTrips - startNTrips]
+dt.stations[, grossTrips := endNTrips + startNTrips]
+dt.stations[, openYear := min(year), by = .(startNAME)]
 
 dt.stations.year <- dt.stations[, .(netTrips = sum(netTrips), grossTrips = sum(grossTrips)),
                                .(startNAME, ID, year, openYear)] # sum over months
+dt.stations.wide <- dcast(dt.stations.year, startNAME + ID + openYear ~ year, 
+              value.var = c("netTrips", "grossTrips"), fill = 0)
+setorder(dt.stations.wide, openYear, grossTrips_2019, grossTrips_2018) # 
 
-# Ranking stations by gross and net trip counts
-setorder(dt.stations.year, year, netTrips) # 
-table(dt.stations.year[, openYear])
+# Average gross trips in 2019 by opening year
+dt.avgbyyear <- dt.stations.wide[, .(avgGrossTrips19 = mean(grossTrips_2019), avgNetTrips19 = mean(netTrips_2019)), 
+                                 .(openYear)]
 
 dt.stations19 <- dt.stations[year == 2019]
 dt.stations19 <- dt.stations19[, .(netTrips = sum(netTrips), grossTrips = sum(grossTrips)),
@@ -166,3 +172,29 @@ setorder(dt.ex, distance)
 plt <- ggplot(dt.ex, aes(x = distance, y = nTrips)) +
   geom_point()
 plot(plt)
+
+################################################################################
+#                                 SUPERSEDED
+################################################################################
+# Line chart showing yearly trends in trips and active stations
+# coeff <- 10000
+# tripColor <- "#69b3a2"
+# stationColor<- rgb(0.2, 0.6, 0.9, 1)
+# 
+# ggplot(dt.totals, aes(x=year)) +
+#   geom_line(aes(y = nStations), size = 2, color = stationColor) +
+#   geom_line(aes(y = nTrips / coeff), size = 2, color = tripColor) +
+#   
+#   scale_y_continuous(
+#     
+#     # First axis
+#     name = "Total Trips (#)",
+#   
+#     sec.axis = sec_axis(~.*coeff, name = "Total Stations (#)")) +
+#   
+#   theme_minimal() +
+#   
+#   theme( axis.title.y = element_text(color = stationColor, size = 13),
+#          axis.title.y.right = element_text(color = tripColor, size = 13)) +
+#   
+#   ggtitle("Capital Bikeshare Demand and Capacity")
