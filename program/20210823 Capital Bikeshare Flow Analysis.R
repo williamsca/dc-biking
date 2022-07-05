@@ -5,18 +5,62 @@ rm(list = ls())
 dir <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
 setwd(dir)
 
-pacman::p_load(data.table, stargazer, estimatr, lmtest, Hmisc, weights, openxlsx,  ggplot2)
+pacman::p_load(data.table, stargazer, estimatr, lmtest, Hmisc, weights, openxlsx,  ggplot2, lubridate)
 # Hmisc: calculate weighted standard deviations
 # weights: produce weighted histograms
 
+# (startNAME, endNAME, year, month)
 dt <- readRDS("derived/Capital Bikeshare Flows (2015-2019).Rds")
 
+# (startNAME, year, month)
+dt.stations <- dt[startNAME == endNAME, .(startNAME, ID, date, startNTrips, endNTrips)]
+dt.stations[, netTrips := endNTrips - startNTrips][, grossTrips := endNTrips + startNTrips]
+dt.stations[, `Trip Ratio` := netTrips / grossTrips]
+dt.stations[, openYear := min(year(date)), by = .(startNAME)][, nStations := 1]
+
+# (month)
+dt.months <- dt.stations[, .(nStations = sum(nStations), nTrips = sum(startNTrips)), by = .(date)]
+dt.months[, avgTrips := nTrips / days_in_month(date)]
+
+# (year)
+dt.years <- dt.stations[, .(nTrips = sum(startNTrips)), by = .(year = year(date), startNAME)]
+dt.years[, nStations := 1]
+dt.years <- dt.years[, .(nTrips = sum(nTrips), nStations = sum(nStations)), by  = .(year)]
+
 #################################################################################
-# DATA EXPLORATION
+#                             DATA EXPLORATION
 #################################################################################
+ggplot(data = dt.years, mapping = aes(x = year, y = nTrips / 365)) +
+  geom_line(linetype = "dashed", color = "gray") +
+  geom_point(color = "black", size = 3) +
+  labs(title = "Average Daily Trips on Capital Bikeshare",
+       subtitle = "2015-2019",
+       x = "Year", y = "Average Daily Trips") +
+  scale_y_continuous(limits = c(7500, 9000), breaks  = c(7500, 8000,  8500, 9000)) +
+  theme_light()
+
+ggplot(data = dt.months, mapping = aes(x = date, y = nTrips / days_in_month(date))) +
+  geom_line(linetype = "dashed", color = "gray") +
+  geom_point(color = "black", size = 3) +
+  labs(title = "Average Daily Trips on Capital Bikeshare by Month", # (by month)
+       subtitle = "2015-2019",
+       x = "Year", y = "Average Daily Trips") +
+  scale_y_continuous(limits =  c(0, 12000)) +
+  scale_x_date(date_breaks = "1 year") +
+  theme_light()
+
+ggplot(data = dt.years[, avgStation := nTrips / (nStations * 365)], mapping = aes(x = year, y = avgStation)) +
+  geom_line(linetype = "dashed", color = "gray") +
+  geom_point(color = "black", size = 3) +
+  labs(title = "Average Daily Trips per Station on Capital Bikeshare",
+       subtitle = "2015-2019",
+       x = "Year", y = "Average Daily Trips per Station") +
+  scale_y_continuous(limits = c(25, 37.5), breaks = c(25, 27.5, 30, 32.5, 35, 37.5)) +
+  theme_light()
+
 nrow(dt[nTrips == 0]) / nrow(dt) # share of origin-destination-month-year tuples with zero trips
 
-# station-pair level statistics and distributions
+# station-pair statistics and distributions for 2019
 # (includes all station pairs which are ever both active in the same month of 2019)
 dt.pairs <- dt[year == 2019,.(nTrips19 = sum(nTrips)), 
                   by = .(startNAME, endNAME, dist_geo, duration, distance, dist_joules, dElevation)]
@@ -39,21 +83,14 @@ wtd.hist(dt.pairs[, dElevation], weight = dt.pairs[, nTrips19])
 wtd.hist(dt.pairs[, distance], weight = dt.pairs[, nTrips19])
 wtd.hist(dt.pairs[, dist_joules], weight = dt.pairs[, nTrips19])
 
-# active stations increase from 200 to 300 between 2015 and 2019, while total trips hover around 3 million
-dt[, isActive := (startNTrips > 0 | endNTrips > 0)]
-dt.totals <- dt[, .(nTrips = sum(nTrips), nStations = max(isActive)), by = .(year, startNAME)]
-dt.totals <- dt.totals[, .(nTrips = sum(nTrips), nStations = sum(nStations)), by = .(year)]
 
-# net trip counts by station-month
-dt.stations <- dt[startNAME == endNAME]
-dt.stations <- dt.stations[, .(startNAME, ID, month, year, startNTrips, endNTrips)]
-dt.stations[, netTrips := endNTrips - startNTrips]
-dt.stations[, grossTrips := endNTrips + startNTrips]
-dt.stations[, openYear := min(year), by = .(startNAME)]
+
+
 
 dt.stations.year <- dt.stations[, .(netTrips = sum(netTrips), grossTrips = sum(grossTrips)),
                                .(startNAME, ID, year, openYear)] # sum over months
-# TODO: reshape wide?
+
+# Ranking stations by gross and net trip counts
 setorder(dt.stations.year, year, netTrips) # 
 table(dt.stations.year[, openYear])
 
@@ -71,12 +108,22 @@ setorder(dt.stations19, rankGross)
 # Capital BikeShare is evidently moving between 10,000 and 20,000 bikes per month
 dt.moved <- dt.stations[, .(nMoved = sum(abs(netTrips))/2), by = .(month, year)]
 
-
+########################################################################################################
+#                                      REGRESSION ANALYSIS
+########################################################################################################
 dt.trips <- dt[startNAME != endNAME] # It is not obvious to me how to think about trips which originate and end at the same station.
 dt.trips[, startI := as.factor(startNAME)][, endI := as.factor(endNAME)][, monthI := as.factor(month)][, yearI := as.factor(year)]
-dt.trips[, lnStartNTrips := log(startNTrips + 1)][, lnEndNTrips := log(endNTrips + 1)][, ln] # TODO: create log versions of distances
+dt.trips[, lnStartNTrips := log(startNTrips + 1)][, lnEndNTrips := log(endNTrips + 1)][, lnDist := log(distance)][, lnDistCal := log(dist_cal + 1)]
 
-hist(dt.trips)
+# OLS (levels)
+lm_geo <- lm(nTrips ~ dist_geo + monthI:yearI, data = dt.trips)
+lm_route <- lm(nTrips ~ dist_geo + distance + monthI:yearI, data = dt.trips)
+lm_joule <- lm(nTrips ~ dist_geo + distance + dist_cal + monthI:yearI, data = dt.trips)
+
+stargazer(lm_geo, lm_route, lm_joule, type = "text", covariate.labels = c("Euclidian Distance", "Taxicab Distance", "Energy (Joules)"), 
+          omit = c("monthI", "yearI"))
+
+rm(lm_geo, lm_route, lm_joule)
 
 # Trial run of a gravity model. 
 # Naive log-log form; exclude observations with zero trips.

@@ -84,7 +84,10 @@ dt.flows <- dt.flows[startCounty == "Washington, DC" & endCounty == "Washington,
 dt.flows[, startNTrips := sum(nTrips), .(startNAME, month, year)]
 dt.flows[, endNTrips := sum(nTrips), .(endNAME, month, year)]
 
-dt.flows <- dt.flows[, c("startCounty", "endCounty", "startX", "startY", "endX", "endY") := NULL]
+dt.flows <- dt.flows[, c("startCounty", "endCounty") := NULL]
+
+dt.flows[, dist_cal := dist_joules * 0.00023901]
+dt.flows[, date := ymd(paste(year, month, "01"))]
 
 saveRDS(dt.flows, file = "derived/Capital Bikeshare Flows (2015-2019).Rds")
 
