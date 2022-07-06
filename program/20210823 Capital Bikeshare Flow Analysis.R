@@ -5,12 +5,16 @@ rm(list = ls())
 dir <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
 setwd(dir)
 
-pacman::p_load(data.table, stargazer, estimatr, lmtest, Hmisc, weights, openxlsx,  ggplot2, lubridate)
+pacman::p_load(data.table, stargazer, estimatr, lmtest, Hmisc, openxlsx,  ggplot2, lubridate)
 # Hmisc: calculate weighted standard deviations
 # weights: produce weighted histograms
 
 # (startNAME, endNAME, year, month)
 dt <- readRDS("derived/Capital Bikeshare Flows (2015-2019).Rds")
+dt <- dt[, distance := distance / .6213712][, dElevation := dElevation / 3.28084][, ]
+
+# (startNAME, endNAME, year)
+dt.segment <- dt[startNAME != endNAME, .(nTrips = sum(nTrips)), by = .(startNAME, endNAME, year, distance, dist_cal, dElevation)]
 
 # (startNAME, year, month)
 dt.stations <- dt[startNAME == endNAME, .(startNAME, ID, date, startNTrips, endNTrips)]
@@ -26,6 +30,14 @@ dt.months[, avgTrips := nTrips / days_in_month(date)]
 dt.years <- dt.stations[, .(nTrips = sum(startNTrips)), by = .(year = year(date), startNAME)]
 dt.years[, nStations := 1]
 dt.years <- dt.years[, .(nTrips = sum(nTrips), nStations = sum(nStations)), by  = .(year)]
+
+dt.years2 <- dt[, .(nTrips = sum(nTrips), 
+                    avgDist = weighted.mean(distance, nTrips), sdDist = sqrt(wtd.var(distance, nTrips)),
+                    avgDEle = weighted.mean(dElevation, nTrips), sdDEle = sqrt(wtd.var(dElevation, nTrips)),
+                    avgCal = weighted.mean(dist_cal, nTrips), sdCal = sqrt(wtd.var(dist_cal, nTrips))),
+                by = .(year)]
+dt.years <- merge(dt.years, dt.years2, by = c("year", "nTrips"))
+rm(dt.year2)
 
 #################################################################################
 #                             DATA EXPLORATION

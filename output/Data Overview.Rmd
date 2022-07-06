@@ -1,5 +1,5 @@
 ---
-title: "Capital Bikeshare: Facts and Figures"
+title: "Is Washington's Capital Bikeshare Going Downhill?"
 output: html_document
 ---
   
@@ -7,7 +7,7 @@ output: html_document
 dir <- dirname(dirname(rstudioapi::getSourceEditorContext()$path))
 setwd(dir)
 
-pacman::p_load(data.table, stargazer, ggplot2, lubridate, stats)
+pacman::p_load(data.table, stargazer, ggplot2, lubridate, stats, knitr, kableExtra, Hmisc)
 
 # (startNAME, endNAME, year, month)
 dt <- readRDS("derived/Capital Bikeshare Flows (2015-2019).Rds")
@@ -17,7 +17,7 @@ dt.stations <- dt[startNAME == endNAME, .(startNAME, ID, date, startNTrips, endN
 dt.stations[, netTrips := endNTrips - startNTrips][, grossTrips := endNTrips + startNTrips]
 dt.stations[, `Trip Ratio` := netTrips / grossTrips]
 dt.stations[, openYear := min(year(date)), by = .(startNAME)][, nStations := 1]
-dt.stations <- dt.stations[grossTrips >= 5]
+# dt.stations <- dt.stations[grossTrips >= 5]
 
 # (startNAME, endNAME, year)
 dt.segment <- dt[startNAME != endNAME, .(nTrips = sum(nTrips)), by = .(startNAME, endNAME, year, distance, dist_cal, dElevation)]
@@ -28,16 +28,21 @@ dt.months <- dt.stations[, .(nStations = sum(nStations), nTrips = sum(startNTrip
 # (year)
 dt.years <- dt.stations[, .(nTrips = sum(startNTrips)), by = .(year = year(date), startNAME)]
 dt.years[, nStations := 1]
-dt.years <- dt.years[, .(nTrips = sum(nTrips), nStations = sum(nStations)), by  = .(year)]
+dt.years <- dt.years[, .(nStations = sum(nStations)), by  = .(year)]
+
+dt.years2 <- dt[, .(nTrips = sum(nTrips), 
+                    avgDist = weighted.mean(distance, nTrips), sdDist = sqrt(wtd.var(distance, nTrips)),
+                    avgDEle = weighted.mean(dElevation, nTrips), sdDEle = sqrt(wtd.var(dElevation, nTrips)),
+                    avgCal = weighted.mean(dist_cal, nTrips), sdCal = sqrt(wtd.var(dist_cal, nTrips))),
+                by = .(year)]
+dt.years <- merge(dt.years, dt.years2, by = c("year"))
+rm(dt.years2)
 
 ```
   
-In 2008, Washington, DC launched the first bikesharing system in the US. It has since expanded to include stations in Maryland and Virginia, but this analysis is limited to trips occurring within DC.
+DC launched the first bikesharing system in the US in 2008. After years of robust growth, ridership slowed modestly in the wake of alternative micro-mobility options introduced in 2018 in the form of e-scooters and dockless bikes operated by private competitors. The future of conventional bikeshares is uncertain, and any predictions are sensitive to the ongoing effects of the novel coronavirus. Nevertheless, I document several trends in the pre-pandemic data which suggest how the system may evolve in the future[^1].
 
-The introduction of powered and dockless scooters and bikes poses a substantial threat to the financial viability of Capital Bikeshare. As users substitute to e-scooters and electric bikes for uphill trips, the cost of maintaining 
-
-
-After years of a steady increase, average daily trips on the network peaked in 2017. Competition from e-scooters and dockless bikes, first introduced at the start of 2018, is likely responsible for the slight decline.
+Despite the slight decline after 2018, ridership on the system appears robust prior to the pandemic.
 
 ```{r echo = FALSE}
 ggplot(data = dt.months, mapping = aes(x = date, y = nTrips / days_in_month(date))) +
@@ -51,9 +56,7 @@ ggplot(data = dt.months, mapping = aes(x = date, y = nTrips / days_in_month(date
   theme_light()
 ```
 
-Despite the sticky heat of Washington in the summertime, usage of the system increases roughly 3-fold between January and May each year.
-
-Capital Bikeshare has continued to expand the network. The number of active[^1] stations in DC proper grew by `r dt.years[year == 2019, nStations] - dt.years[year == 2015, nStations]` between 2015 and 2019. However, these stations have appeared in increasingly marginal locations, and the number of trips per station has fallen steadily.
+However, the aggregate figures disguise a more concerning trend: although the number of operating stations in DC proper grew by `r dt.years[year == 2019, nStations] - dt.years[year == 2015, nStations]` between 2015 and 2019, the number of trips per station has fallen steadily. As of 2020, the city's contract with the system operator costs them $99 per month per bike dock[^3], so any decline in the number of trips per bike threatens DDOT's bottom line.
 
 ```{r echo = FALSE}
 ggplot(data = dt.years[, avgStation := nTrips / (nStations * 365)], mapping = aes(x = year, y = avgStation)) +
@@ -66,19 +69,38 @@ ggplot(data = dt.years[, avgStation := nTrips / (nStations * 365)], mapping = ae
   theme_light()
 ```
 
-The average trip in 2019 was roughly `r round(weighted.mean(dt.segment[year == 2019, .(distance)], dt.segment[year == 2019, .(nTrips)])/.6213712, 2)` miles long. It arrived at a station which was `r round(weighted.mean(dt.segment[year == 2019, .(dElevation)], dt.segment[year == 2019, .(nTrips)])*3.28084, 2)` feet lower in elevation than the point of departure, and a typical cyclist would have expended about `r round(weighted.mean(dt.segment[year == 2019, .(dist_cal)], dt.segment[year == 2019, .(nTrips)]))` Calories of energy along the way.
+The data indicate that electric scooters are substitutes for the Capital Bikeshare fleet. Can we say anything about which types of trip are more or less likely to be taken by scooter or with Capital Bikeshare? After e-scooters are introduced in 2018, there is no change in the average trip length, but trips tend to be more downhill and to require fewer Calories[^4] from the rider. This is consistent with a preference for e-scooters on more arduous trips. Of course, the standard errors are huge, so while a decline of 0.8 feet in the average elevation change may be practically meaningful for the system operator working to keep bikes available at all stations, it is statistically indistinguishable from random variation. 
 
-## The Geography of Bikesharing
+```{r  echo=FALSE}
+kable(dt.years[, .(year, avgDist, sdDist, avgDEle, sdDEle, avgCal, sdCal)], digits = 2, caption = "Average Trip Statistics",
+      col.names = c("Year", "Length (mi.)", "Len. Std. Dev.", "Elev. Change (ft.)", "Elev. Std. Dev.", "Calories", "Cal Std. Dev.")) %>% kable_classic()
+```
+
+
+
+
+### The Geography of Bikesharing
+
+Bike stations are broadly available in the commercial areas of DC.
 
 ```{r echo=FALSE}
 knitr::include_graphics("20220703 Bikeshare Stations (2019).png")
 ```
 
-Bikes tend to migrate towards the National Mall. Accordingly, the system suffers from chronic imbalances, and it is only by employing fleets of vans that the system operator can ensure bikes are consistently available at every station. 
+Bikes tend to migrate towards the National Mall. The size of each marker indicates the total combined arrivals and departures observed at that station over 2019, and the color indicates the ratio of net trips to gross trips. For instance, a ratio of -1 would indicate that bikes only departed from the station and never arrived, while a ratio of 0.2 says that there were 1.5 times as many arrivals as departures.[^5] 
 
 ```{r echo=FALSE}
 knitr::include_graphics("20220703 Bikeshare Usage (2019).png")
 ```
 
-[^1]: A station is "active" if it has at least five combined arrivals and departures over the calendar year.
+### Citations
 
+Iseki, Hiroyuki, and Matthew Tingstrom. "A new approach for bikeshed analysis with consideration of topography, street connectivity, and energy consumption." Computers, environment and urban systems 48 (2014): 166-177.
+
+[^1]: Although the system includes stations in Virginia and Maryland, all analysis is limited to trips occurring within Washington, DC.
+
+[^3]: https://ddot.dc.gov/sites/default/files/dc/sites/ddot/page_content/attachments/23397_Capital_Bikeshare_Plan_Update_v4_051220_WEB.pdf
+
+[^4]: I calculate the shortest path between all bikeshare stations in D.C., determine the elevation at roughly 1/3 mile increments along those paths, and estimate the necessary Calories expended while biking using the formula described in Iseki and Tingstrom (2014). This turned out to be a lot of work for almost no insight.
+
+[^5]: To be perfectly clear: $$\frac{A-D}{A+D} = 0.2 \implies A = 1.5D$$
