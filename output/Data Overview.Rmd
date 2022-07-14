@@ -28,21 +28,26 @@ dt.months <- dt.stations[, .(nStations = sum(nStations), nTrips = sum(startNTrip
 # (year)
 dt.years <- dt.stations[, .(nTrips = sum(startNTrips)), by = .(year = year(date), startNAME)]
 dt.years[, nStations := 1]
-dt.years <- dt.years[, .(nStations = sum(nStations)), by  = .(year)]
+dt.years[, alwaysActive := (.N == 5), by = .(startNAME)]
+dt.years <- dt.years[, .(nStations0 = sum(nStations), nTrips0 = sum(nTrips), nTrips1 = sum(nTrips * alwaysActive), nStations1 = sum(nStations * alwaysActive)), 
+                     by  = .(year)]
+dt.years <- melt(dt.years, measure = patterns("^nTrips", "^nStations"), value.name = c("nTrips", "nStations"), variable.name = "isAA")
 
 dt.years2 <- dt[, .(nTrips = sum(nTrips), 
                     avgDist = weighted.mean(distance, nTrips), sdDist = sqrt(wtd.var(distance, nTrips)),
                     avgDEle = weighted.mean(dElevation, nTrips), sdDEle = sqrt(wtd.var(dElevation, nTrips)),
                     avgCal = weighted.mean(dist_cal, nTrips), sdCal = sqrt(wtd.var(dist_cal, nTrips))),
                 by = .(year)]
-dt.years <- merge(dt.years, dt.years2, by = c("year"))
+dt.years <- merge(dt.years, dt.years2, by = c("year", "nTrips"), all.x = TRUE)
+dt.years[, avgStation := nTrips / (nStations * 365)]
+dt.years[isAA == "1", isAA := "All Stations"][isAA == "2", isAA := "Always Active"]
 rm(dt.years2)
 
 ```
   
-DC launched the first bikesharing system in the US in 2008. After years of robust growth, ridership slowed modestly in the wake of alternative micro-mobility options introduced in 2018 in the form of e-scooters and dockless bikes operated by private competitors. The future of conventional bikeshares is uncertain, and any predictions are sensitive to the ongoing effects of the novel coronavirus. Nevertheless, I document several trends in the pre-pandemic data which suggest how the system may evolve in the future[^1].
+Washington, DC launched the first bikesharing system in the US in 2008. After years of robust growth, ridership slowed modestly in 2018 in the face of competition from e-scooters and dockless bikes operated by private firms. The future of conventional bikeshares is uncertain, and any predictions are sensitive to the ongoing effects of the novel coronavirus. Nevertheless, I document several trends in the pre-pandemic data[^1] which suggest one possible future for these services: smaller, well-serviced networks, emphasizing reliability and convenience, and designed to complement other forms of urban transportation.
 
-Despite the slight decline after 2018, ridership on the system appears robust prior to the pandemic.
+E-scooters offer a dream of flexible and low-cost mobility. The reality for many, however, is that they are frequently a tease and always a nuisance. On several occasions, I have spotted a flock of Birds large enough for my party only to trek over and find that one or more had a dead battery. The scooters occupy valuable space on sidewalks and seem to inspire their riders with visions of a glorious entrance to Valhalla via traffic collision. Despite these drawbacks, e-scooters were apparently useful enough to dent monthly ridership on Capital Bikeshare after 2018.
 
 ```{r echo = FALSE}
 ggplot(data = dt.months, mapping = aes(x = date, y = nTrips / days_in_month(date))) +
@@ -56,16 +61,19 @@ ggplot(data = dt.months, mapping = aes(x = date, y = nTrips / days_in_month(date
   theme_light()
 ```
 
-However, the aggregate figures disguise a more concerning trend: although the number of operating stations in DC proper grew by `r dt.years[year == 2019, nStations] - dt.years[year == 2015, nStations]` between 2015 and 2019, the number of trips per station has fallen steadily. As of 2020, the city's contract with the system operator costs them $99 per month per bike dock[^3], so any decline in the number of trips per bike threatens DDOT's bottom line.
+The seasonality of Capital Bikeshare trips suggests two sources of demand: the summer tourists; and the full-time residents of DC who staff Congressional offices, fund-raise for nonprofits, and flock to the National Gallery of Art's summer concerts series. However, even bikeshare stations located in the least-touristed parts of DC tend to see a dip in demand during the winter months, so some of the effect is simply that cold-weather biking is decidedly unpleasant. #TODO: verify this claim, add a footnote
+
+The aggregate ridership figures disguise a more concerning trend: although the number of operating stations in DC proper grew by `r dt.years[year == 2019 & isAA == "All Stations", nStations] - dt.years[year == 2015 & isAA == "All Stations", nStations]` between 2015 and 2019, the number of trips per station has fallen steadily. Even among the `r dt.years[year == 2019 & isAA == "Always Active", nStations]` which operate every year between 2016 and 2019, the intensity of use declines even as more nodes are added to the network. As of 2020, the city's contract with the system operator costs them $99 per month per bike dock[^3], so any decline in the number of trips per bike threatens DDOT's bottom line.
 
 ```{r echo = FALSE}
-ggplot(data = dt.years[, avgStation := nTrips / (nStations * 365)], mapping = aes(x = year, y = avgStation)) +
-  geom_line(linetype = "dashed", color = "gray") +
-  geom_point(color = "black", size = 3) +
+ggplot(data = dt.years, mapping = aes(x = year, y = avgStation, color = isAA)) +
+  geom_line(linetype = "dashed") +
+  geom_point(size = 3) +
   labs(title = "Average Daily Trips per Station",
        subtitle = "2015-2019",
        x = "Year", y = "Trips") +
   scale_y_continuous(limits = c(25, 37.5), breaks = c(25, 27.5, 30, 32.5, 35, 37.5)) +
+  guides(color = guide_legend(title=NULL)) +
   theme_light()
 ```
 
