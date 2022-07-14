@@ -40,14 +40,14 @@ dt.years2 <- dt[, .(nTrips = sum(nTrips),
                 by = .(year)]
 dt.years <- merge(dt.years, dt.years2, by = c("year", "nTrips"), all.x = TRUE)
 dt.years[, avgStation := nTrips / (nStations * 365)]
-dt.years[isAA == "1", isAA := "All Stations"][isAA == "2", isAA := "Always Active"]
+dt.years[isAA == "1", isAA := "All Stations"][isAA == "2", isAA := "Active 2016-2019"]
 rm(dt.years2)
 
 ```
   
-Washington, DC launched the first bikesharing system in the US in 2008. After years of robust growth, ridership slowed modestly in 2018 in the face of competition from e-scooters and dockless bikes operated by private firms. The future of conventional bikeshares is uncertain, and any predictions are sensitive to the ongoing effects of the novel coronavirus. Nevertheless, I document several trends in the pre-pandemic data[^1] which suggest one possible future for these services: smaller, well-serviced networks, emphasizing reliability and convenience, and designed to complement other forms of urban transportation.
+Washington, DC launched the first bikesharing system in the US in 2008. After years of robust growth, ridership slowed modestly in 2018 in the face of competition from e-scooters and dockless bikes operated by private firms. The future of conventional bikeshares is uncertain, and any predictions are sensitive to the ongoing effects of the novel coronavirus. Nevertheless, I document several trends in the pre-pandemic data[^1] which suggest one possible future for these services: smaller, well-maintained networks, emphasizing reliability and convenience, and designed to complement other forms of urban transportation.
 
-E-scooters offer a dream of flexible and low-cost mobility. The reality for many, however, is that they are frequently a tease and always a nuisance. On several occasions, I have spotted a flock of Birds large enough for my party only to trek over and find that one or more had a dead battery. The scooters occupy valuable space on sidewalks and seem to inspire their riders with visions of a glorious entrance to Valhalla via traffic collision. Despite these drawbacks, e-scooters were apparently useful enough to dent monthly ridership on Capital Bikeshare after 2018.
+E-scooters offer a dream of low-cost, point-to-point mobility. In reality, however, they are often a tease and always a nuisance. On several occasions, I have spotted a flock of Birds large enough for my party only to trek over and find that one or more had a dead battery. The scooters occupy valuable space on sidewalks and seem to inspire their riders with visions of a glorious entrance to Valhalla via traffic collision. Despite these drawbacks, e-scooters were apparently useful enough to dent monthly ridership on Capital Bikeshare after 2018.
 
 ```{r echo = FALSE}
 ggplot(data = dt.months, mapping = aes(x = date, y = nTrips / days_in_month(date))) +
@@ -61,9 +61,13 @@ ggplot(data = dt.months, mapping = aes(x = date, y = nTrips / days_in_month(date
   theme_light()
 ```
 
-The seasonality of Capital Bikeshare trips suggests two sources of demand: the summer tourists; and the full-time residents of DC who staff Congressional offices, fund-raise for nonprofits, and flock to the National Gallery of Art's summer concerts series. However, even bikeshare stations located in the least-touristed parts of DC tend to see a dip in demand during the winter months, so some of the effect is simply that cold-weather biking is decidedly unpleasant. #TODO: verify this claim, add a footnote
+The seasonality of Capital Bikeshare trips suggests two sources of demand: the summer tourists; and the full-time residents of DC who staff Congressional offices, fund-raise for nonprofits, and flock to the National Gallery of Art's summer concerts series. However, even bikeshare stations located in the least-touristed parts of DC tend to see a dip in demand during the winter months, so some of the effect is simply that cold-weather biking is generally unpleasant.[^2] 
 
-The aggregate ridership figures disguise a more concerning trend: although the number of operating stations in DC proper grew by `r dt.years[year == 2019 & isAA == "All Stations", nStations] - dt.years[year == 2015 & isAA == "All Stations", nStations]` between 2015 and 2019, the number of trips per station has fallen steadily. Even among the `r dt.years[year == 2019 & isAA == "Always Active", nStations]` which operate every year between 2016 and 2019, the intensity of use declines even as more nodes are added to the network. As of 2020, the city's contract with the system operator costs them $99 per month per bike dock[^3], so any decline in the number of trips per bike threatens DDOT's bottom line.
+It follows that bikeshares are not an effective substitute for other forms of mass transit. When the temperature dips below 40 degrees or the forecast calls for rain, commuters will look to buses, rail, and private cars to make their trips. Ultimately, bikeshares are a luxury good. They are nice advertisements for a city's environmentalism and exercise culture, but can only be a partial solution to the problem of urban transportation.
+
+The aggregate ridership figures disguise a more concerning trend: although the number of operating stations in DC proper grew by `r dt.years[year == 2019 & isAA == "All Stations", nStations] - dt.years[year == 2015 & isAA == "All Stations", nStations]` between 2015 and 2019, the number of trips per station has fallen steadily. Even among the `r dt.years[year == 2019 & isAA == "Always Active", nStations]` stations which operated every year between 2016 and 2019, the intensity of use declined even as the network grew. 
+
+This decline matters because fixed costs comprise a large share of Capital Bikeshare's expenses. As of 2020, the city's contract with the system operator costs them $99 per month per bike dock[^3], so any decline in the number of trips per bike threatens DDOT's bottom line. 
 
 ```{r echo = FALSE}
 ggplot(data = dt.years, mapping = aes(x = year, y = avgStation, color = isAA)) +
@@ -77,25 +81,31 @@ ggplot(data = dt.years, mapping = aes(x = year, y = avgStation, color = isAA)) +
   theme_light()
 ```
 
-The data indicate that electric scooters are substitutes for the Capital Bikeshare fleet. Can we say anything about which types of trip are more or less likely to be taken by scooter or with Capital Bikeshare? After e-scooters are introduced in 2018, there is no change in the average trip length, but trips tend to be more downhill and to require fewer Calories[^4] from the rider. This is consistent with a preference for e-scooters on more arduous trips. Of course, the standard errors are huge, so while a decline of 0.8 feet in the average elevation change may be practically meaningful for the system operator working to keep bikes available at all stations, it is statistically indistinguishable from random variation. 
+It's clear that e-scooters are substitutes for conventional bikes. However, not all Capital Bikeshare trips are equal. The daily commuter coming from Foxhall to the office in Dupont Circle has different needs that the family on vacation taking a spin around the Tidal Basin. Which kind of trips are more likely to be made by scooter? 
+
+Trip characteristics are generally unchanged after e-scooters are introduced in 2018. Trips do tend to be more downhill and to require fewer Calories[^4] from the rider. This is consistent with a preference for e-scooters on more arduous trips. Of course, the standard errors are huge, so while a decline of 0.8 feet in the average elevation change may be practically meaningful for the system operator working to keep bikes available at all stations, it is statistically indistinguishable from random variation.[^6]
 
 ```{r  echo=FALSE}
-kable(dt.years[, .(year, avgDist, sdDist, avgDEle, sdDEle, avgCal, sdCal)], digits = 2, caption = "Average Trip Statistics",
+kable(dt.years[isAA == "All Stations", .(year, avgDist, sdDist, avgDEle, sdDEle, avgCal, sdCal)], digits = 2, caption = "Average Trip Statistics",
       col.names = c("Year", "Length (mi.)", "Len. Std. Dev.", "Elev. Change (ft.)", "Elev. Std. Dev.", "Calories", "Cal Std. Dev.")) %>% kable_classic()
 ```
 
+Recent developments in micro-mobility, like the streetcar and automobile before them, may yet cause profound and lasting changes in urban geography. However, planners and operators have yet to distill these technologies into a solution compelling enough to entice households to discard existing transportation arrangements. 
 
+Capital Bikeshare has demonstrated that docked bikes can compete with conventional forms of transit. Moving forward, the viability of bikeshares will depend on how riders value the reliability of guaranteed access to a bike at the neighborhood dock against the flexibility and 
+power of electronic devices. 
 
+### Appendix: The Geography of Bikesharing
 
-### The Geography of Bikesharing
-
-Bike stations are broadly available in the commercial areas of DC.
+Bike stations are broadly available across the District.
 
 ```{r echo=FALSE}
 knitr::include_graphics("20220703 Bikeshare Stations (2019).png")
 ```
 
 Bikes tend to migrate towards the National Mall. The size of each marker indicates the total combined arrivals and departures observed at that station over 2019, and the color indicates the ratio of net trips to gross trips. For instance, a ratio of -1 would indicate that bikes only departed from the station and never arrived, while a ratio of 0.2 says that there were 1.5 times as many arrivals as departures.[^5] 
+
+The area north of Downtown is at a relatively high elevation. Accordingly, more bikes depart from these stations than arrive. 
 
 ```{r echo=FALSE}
 knitr::include_graphics("20220703 Bikeshare Usage (2019).png")
@@ -107,8 +117,12 @@ Iseki, Hiroyuki, and Matthew Tingstrom. "A new approach for bikeshed analysis wi
 
 [^1]: Although the system includes stations in Virginia and Maryland, all analysis is limited to trips occurring within Washington, DC.
 
+[^2]: For instance, the station at 16th and Irving, in the Columbia Heights neighborhood, saw `r dt.stations[startNAME == "16th & Irving St NW" & date == "2019-02-01", startNTrips + endNTrips]` combined arrivals and departures in Febuary 2019, compared to `r dt.stations[startNAME == "16th & Irving St NW" & date == "2019-07-01", startNTrips + endNTrips]` in July.
+
 [^3]: https://ddot.dc.gov/sites/default/files/dc/sites/ddot/page_content/attachments/23397_Capital_Bikeshare_Plan_Update_v4_051220_WEB.pdf
 
-[^4]: I calculate the shortest path between all bikeshare stations in D.C., determine the elevation at roughly 1/3 mile increments along those paths, and estimate the necessary Calories expended while biking using the formula described in Iseki and Tingstrom (2014). This turned out to be a lot of work for almost no insight.
+[^4]: I calculate the shortest path between all bikeshare stations in D.C., determine the elevation at roughly 1/3 mile increments along those paths, and estimate the necessary Calories expended while biking using the formula described in Iseki and Tingstrom (2014). This turned out to be more trouble than it was worth.
 
 [^5]: To be perfectly clear: $$\frac{A-D}{A+D} = 0.2 \implies A = 1.5D$$
+
+[^6]: Other features of Capital Bikeshare trips, like the geography or timing, may show more significant changes.
